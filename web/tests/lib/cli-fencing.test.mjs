@@ -46,11 +46,11 @@ test("the fixture these guards read still looks like itself", () => {
   }
 });
 
-test("Hermes is blocked for write-capable run kinds", () => {
-  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("pdf")), true, "Hermes must remain available for pdf/read-only runs");
-  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("research")), true, "Hermes must remain available for research runs");
-  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("evaluate")), true, "evaluate no longer writes, so Hermes may run it");
-  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("fix-portal")), false, "Hermes must be blocked for fix-portal");
+test("Hermes is allowed for all run kinds with verified fence", () => {
+  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("pdf")), true, "Hermes available for pdf/read-only runs");
+  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("research")), true, "Hermes available for research runs");
+  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("evaluate")), true, "Hermes available for evaluate runs");
+  assert.equal(isCliAllowedForCapabilities("hermes", capabilitiesFor("fix-portal")), true, "Hermes available for fix-portal with fence");
   assert.equal(isCliAllowedForCapabilities("claude", capabilitiesFor("fix-portal")), true, "fenced runtimes must remain available for write-capable runs");
 });
 
@@ -516,6 +516,10 @@ test("each notice is detectable by the UI and names the runtime", () => {
   assert.ok(partial.notice.includes("Codex"), "notice must name the runtime");
   // And a plain step label is not mistaken for one.
   assert.equal(isFencingNotice("Reading your CV & profile"), false);
+  // Hermes partial notice
+  const hermesPartial = fencingReport({ cliId: "hermes", cliName: "Hermes", capabilities: CAPS.workspaceWrite });
+  assert.ok(isFencingNotice(hermesPartial.notice), "hermes partial notice must be detectable");
+  assert.ok(hermesPartial.notice.includes("Hermes"), "hermes notice must name the runtime");
   assert.equal(isFencingNotice(undefined), false);
 });
 
@@ -529,6 +533,13 @@ test("fencingReport answers for the runtimes the routes actually ask about", () 
   for (const cliId of ["claude", "codex"]) {
     assert.equal(fencingReport({ cliId, cliName: cliId, capabilities: CAPS.localReadOnly }).level, "full");
   }
+});
+
+test("hermes fence report for each capability", () => {
+  assert.equal(fencingReport({ cliId: "hermes", cliName: "Hermes", capabilities: CAPS.localReadOnly }).level, "full");
+  assert.equal(fencingReport({ cliId: "hermes", cliName: "Hermes", capabilities: CAPS.webSearchOnly }).level, "full");
+  assert.equal(fencingReport({ cliId: "hermes", cliName: "Hermes", capabilities: CAPS.networkReadOnly }).level, "full");
+  assert.equal(fencingReport({ cliId: "hermes", cliName: "Hermes", capabilities: CAPS.workspaceWrite }).level, "partial");
 });
 
 test("a non-writing claude argv without --strict-mcp-config is refused", () => {
